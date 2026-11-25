@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIRTHDAY SYSTEM 6.0</title>
+
+<style>
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  min-height:100vh;
+  background:radial-gradient(circle at top,#172b4d,#080d18 65%);
+  color:white;
+  font-family:Arial,sans-serif;
+}
+header {
+  padding:22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid #263750;
+}
+.logo {font-weight:900;letter-spacing:3px;color:#67e8f9}
+.status {color:#4ade80;font-size:12px}
+main {
+  width:min(900px,92%);
+  margin:45px auto;
+}
+.panel {
+  background:rgba(17,30,50,.88);
+  border:1px solid #29415e;
+  border-radius:20px;
+  padding:28px;
+  box-shadow:0 15px 50px #0007;
+  margin-bottom:20px;
+}
+h1 {font-size:clamp(28px,6vw,48px);margin:8px 0}
+h2 {color:#67e8f9}
+p {color:#b7c8dc;line-height:1.6}
+input {
+  width:100%;
+  padding:15px;
+  margin:10px 0;
+  border-radius:10px;
+  border:1px solid #3c5878;
+  background:#0b1525;
+  color:white;
+  font-size:16px;
+}
+button {
+  border:0;
+  border-radius:10px;
+  padding:14px 19px;
+  background:linear-gradient(90deg,#0891b2,#6366f1);
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  margin:5px 4px 5px 0;
+}
+button:hover {filter:brightness(1.2);transform:translateY(-1px)}
+.secondary {background:#263b58}
+.hidden {display:none}
+.stats {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+.stat {
+  background:#0b1729;
+  padding:20px;
+  border-radius:14px;
+  border:1px solid #29415e;
+}
+.number {font-size:32px;color:#67e8f9;font-weight:bold}
+#message {
+  white-space:pre-line;
+  font-size:19px;
+  line-height:1.7;
+}
+.activity {
+  border-bottom:1px solid #263750;
+  padding:10px 0;
+  color:#b7c8dc;
+}
+footer {text-align:center;color:#62758d;padding:30px;font-size:12px}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="logo">BIRTHDAY SYSTEM 6.0</div>
+  <div class="status">● ONLINE EDITION</div>
+</header>
+
+<main>
+  <section id="home" class="panel">
+    <p>WELCOME TO YOUR PERSONAL SYSTEM</p>
+    <h1>THE BIRTHDAY<br><span style="color:#67e8f9">EXPERIENCE.</span></h1>
+    <p>Ein kleines System mit großen Überraschungen.</p>
+    <input id="birthday" placeholder="Geburtsdatum (TT.MM.JJJJ)">
+    <button onclick="startSystem()">SYSTEM STARTEN →</button>
+    <button class="secondary" onclick="showQuiz()">QUIZ</button>
+    <div id="error" style="color:#fb7185"></div>
+  </section>
+
+  <section id="surprise" class="panel hidden">
+    <h2 id="surpriseTitle">ÜBERRASCHUNG</h2>
+    <div id="message"></div>
+    <button onclick="backHome()">Zurück</button>
+  </section>
+
+  <section id="quiz" class="panel hidden">
+    <h2>QUIZ MODE</h2>
+    <div id="question"></div>
+    <div id="answers"></div>
+    <p id="quizResult"></p>
+    <button class="secondary" onclick="backHome()">Beenden</button>
+  </section>
+
+  <section id="creator" class="hidden">
+    <div class="panel">
+      <p>ADMINISTRATION / CREATOR ACCESS</p>
+      <h1>CREATOR <span style="color:#67e8f9">DASHBOARD</span></h1>
+      <div class="stats">
+        <div class="stat"><div class="number" id="visitors">–</div>Besucher</div>
+        <div class="stat"><div class="number" id="starts">–</div>Systemstarts</div>
+        <div class="stat"><div class="number" id="quizzes">–</div>Quizstarts</div>
+        <div class="stat"><div class="number" id="surprises">–</div>Überraschungen</div>
+      </div>
+      <h2>Letzte Aktivitäten</h2>
+      <div id="activity">Noch keine Daten.</div>
+      <button class="secondary" onclick="logout()">Abmelden</button>
+    </div>
+  </section>
+
+  <section id="adminLogin" class="panel hidden">
+    <h2>CREATOR LOGIN</h2>
+    <input id="adminEmail" type="email" placeholder="Admin E-Mail">
+    <input id="adminPassword" type="password" placeholder="Passwort">
+    <button onclick="adminLogin()">Einloggen</button>
+    <p id="loginError"></p>
+  </section>
+</main>
+
+<footer>BIRTHDAY SYSTEM 6.0 · PRIVATE PROJECT</footer>
+
+<!-- Firebase: Hier später deine Projekt-Konfiguration einfügen -->
+<script type="module">
+import { initializeApp } from
+"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, getDocs,
+  query, orderBy, limit, serverTimestamp
+} from
+"https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {
+  getAuth, signInAnonymously, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged
+} from
+"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+/* 1. FIREBASE CONFIGURATION */
+const firebaseConfig = {
+  apiKey: "DEIN_API_KEY",
+  authDomain: "DEIN_PROJEKT.firebaseapp.com",
+  projectId: "DEIN_PROJEKT",
+  storageBucket: "DEIN_PROJEKT.appspot.com",
+  messagingSenderId: "DEINE_SENDER_ID",
+  appId: "DEINE_APP_ID"
+};
+
+/* 2. ADMIN E-MAIL */
+const ADMIN_EMAIL = "DEINE-ADMIN-EMAIL";
+
+/* 3. CONNECT */
+let db, auth, ready = false;
+
+try {
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  auth = getAuth(app);
+
+  await signInAnonymously(auth);
+  ready = true;
+  await track("Besuch");
+} catch (error) {
+  console.error("Firebase:", error);
+  document.getElementById("error").textContent =
+    "Online-Datenbank noch nicht eingerichtet.";
+}
+
+async function track(type) {
+  if (!ready || !auth.currentUser) return;
+  try {
+    await addDoc(collection(db,"activity"), {
+      type,
+      createdAt:serverTimestamp()
+    });
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+/* 4. NAVIGATION */
+function hideAll() {
+  ["home","surprise","quiz","creator","adminLogin"]
+    .forEach(id => document.getElementById(id).classList.add("hidden"));
+}
+function backHome() {
+  hideAll();
+  document.getElementById("home").classList.remove("hidden");
+}
+window.backHome = backHome;
+
+/* 5. BIRTHDAY SYSTEM */
+window.startSystem = async function() {
+  const raw = document.getElementById("birthday").value.trim();
+  const date = raw.replaceAll("/",".");
+
+  document.getElementById("error").textContent = "";
+
+  await track("Systemstart");
+
+  if (date === "12.09.2013") {
+    hideAll();
+    document.getElementById("adminLogin").classList.remove("hidden");
+    return;
+  }
+
+  hideAll();
+  document.getElementById("surprise").classList.remove("hidden");
+
+  if (date === "25.11.1980") {
+    document.getElementById("surpriseTitle").textContent =
+      "❤️ FÜR PAPA";
+    document.getElementById("message").textContent =
+      "Papa, ich wollte dir einfach mal Danke sagen. Danke, dass du immer für mich da bist. Ich bin echt froh, dich als Papa zu haben. Hab dich lieb! ❤️";
+    await track("Papa Überraschung");
+  } else if (date === "30.11.2019") {
+    document.getElementById("surpriseTitle").textContent =
+      "💜 FÜR KLARA";
+    document.getElementById("message").textContent =
+      "Manchmal nervst du schon ein bisschen ... Aber ohne dich wäre es auch langweilig. Hab dich lieb! ❤️";
+    await track("Klara Überraschung");
+  } else if (date === "123") {
+    showQuiz();
+  } else if (date === "456") {
+    document.getElementById("surpriseTitle").textContent =
+      "🏁 GAME MODE";
+    document.getElementById("message").textContent =
+      "Der Racing-Modus kommt als nächstes zurück!";
+  } else {
+    document.getElementById("surpriseTitle").textContent =
+      "ZUGANG NICHT ERKANNT";
+    document.getElementById("message").textContent =
+      "Dieses Datum ist nicht im System hinterlegt.";
+    await track("Falsche Eingabe");
+  }
+};
+
+/* 6. QUIZ */
+const questions = [
+  {q:"Wie viele Kontinente gibt es?",a:["5","7","9"],c:1},
+  {q:"Was ist 12 × 8?",a:["84","96","108"],c:1},
+  {q:"Was ist die Hauptstadt von Frankreich?",a:["Paris","Rom","Madrid"],c:0},
+  {q:"Welcher Planet ist der größte?",a:["Mars","Erde","Jupiter"],c:2},
+  {q:"Wie viele Sekunden hat eine Minute?",a:["30","60","100"],c:1},
+  {q:"Was ist 144 ÷ 12?",a:["10","12","14"],c:1},
+  {q:"Welches Tier ist ein Säugetier?",a:["Hai","Delfin","Forelle"],c:1},
+  {q:"Wie heißt die Hauptstadt von Italien?",a:["Rom","Wien","Berlin"],c:0},
+  {q:"Wie viele Seiten hat ein Würfel?",a:["4","6","8"],c:1},
+  {q:"Welcher Stoff hat das Symbol O?",a:["Gold","Sauerstoff","Eisen"],c:1}
+];
+let current = 0, points = 0, chosen = [];
+
+window.showQuiz = async function() {
+  hideAll();
+  document.getElementById("quiz").classList.remove("hidden");
+  current = 0;
+  points = 0;
+  chosen = [...questions].sort(()=>Math.random()-.5).slice(0,10);
+  await track("Quizstart");
+  showQuestion();
+};
+
+function showQuestion() {
+  const item = chosen[current];
+  document.getElementById("question").textContent =
+    `Frage ${current+1}/10: ${item.q}`;
+  document.getElementById("quizResult").textContent =
+    `Punkte: ${points}`;
+  const area = document.getElementById("answers");
+  area.innerHTML = "";
+  item.a.forEach((answer,index)=>{
+    const btn = document.createElement("button");
+    btn.textContent = answer;
+    btn.onclick = ()=>answerQuestion(index);
+    area.appendChild(btn);
+  });
+}
+function answerQuestion(index) {
+  if (index === chosen[current].c) points++;
+  current++;
+  if (current >= chosen.length) {
+    document.getElementById("question").textContent =
+      "QUIZ BEENDET!";
+    document.getElementById("answers").innerHTML = "";
+    document.getElementById("quizResult").textContent =
+      `Dein Ergebnis: ${points}/10`;
+    return;
+  }
+  showQuestion();
+}
+
+/* 7. CREATOR LOGIN */
+window.adminLogin = async function() {
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+  const error = document.getElementById("loginError");
+
+  try {
+    const result = await signInWithEmailAndPassword(auth,email,password);
+    if (result.user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      await signOut(auth);
+      throw new Error("Kein Creator-Zugang.");
+    }
+    await loadDashboard();
+  } catch(e) {
+    error.textContent = "Login fehlgeschlagen: " + e.message;
+  }
+};
+
+async function loadDashboard() {
+  hideAll();
+  document.getElementById("creator").classList.remove("hidden");
+
+  const snapshot = await getDocs(collection(db,"activity"));
+  const events = snapshot.docs.map(d=>d.data());
+
+  document.getElementById("visitors").textContent =
+    new Set(events.filter(e=>e.type==="Besuch").map(e=>e.createdAt?.seconds)).size;
+  document.getElementById("starts").textContent =
+    events.filter(e=>e.type==="Systemstart").length;
+  document.getElementById("quizzes").textContent =
+    events.filter(e=>e.type==="Quizstart").length;
+  document.getElementById("surprises").textContent =
+    events.filter(e=>e.type==="Papa Überraschung" ||
+      e.type==="Klara Überraschung").length;
+
+  const recent = await getDocs(query(
+    collection(db,"activity"),
+    orderBy("createdAt","desc"),
+    limit(15)
+  ));
+
+  const area = document.getElementById("activity");
+  area.innerHTML = "";
+  recent.forEach(doc=>{
+    const div = document.createElement("div");
+    div.className = "activity";
+    div.textContent = doc.data().type;
+    area.appendChild(div);
+  });
+}
+
+window.logout = async function() {
+  await signOut(auth);
+  await signInAnonymously(auth);
+  backHome();
+};
+
+onAuthStateChanged(auth,user=>{
+  if (user && user.email) {
+    // Dashboard wird erst nach erfolgreichem Creator-Login geöffnet.
+  }
+});
+</script>
+</body>
+</html>
